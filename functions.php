@@ -35,7 +35,7 @@ $oAuthClient = new GoogleOAuth($config);
 //Google OAuth2
 add_action('init', 'google_auth_init');
 function google_auth_init($button = false) {
-	global $error, $oAuthClient;
+	global $error, $oAuthClient, $config;
 	session_start();
 //	$config = get_config(true);
 //	$oAuthClient = new GoogleOAuth($config);
@@ -47,7 +47,7 @@ function google_auth_init($button = false) {
 			logMsg("Access token: " . print_r($token, true));
 			$_SESSION['token'] = $token;
 		} catch (Google_AuthException $e) {
-			error_log("Exception logging in user: " . $e . getMessage());
+			error_log("Exception logging in user: " . $e->getMessage());
 			loginFailed("System encountered error. Please try again.");
 		}
 
@@ -81,8 +81,16 @@ function google_auth_init($button = false) {
 
 					// checking to see if g_id exists in the DB
 					$users1 = get_users(array('meta_key' => 'google_auth_userid', 'meta_value' => $g_id));
-					$user_id = (int)($users1[0]->ID);
+					if(is_array($users1)){
+						while(list($idx,$user) = each($users1)){
+							if($user->data->user_email == $g_email){
+								$user_id = (int)($user->ID);
+							}
+						}
+					}
 
+
+					logMsg($users1);
 					// if we can't find google_auth_userid, will try to look for bc-oauth key and match email address
 					if ($user_id < 1) {
 						$users2 = get_users(array('meta_key' => 'bc_oauth_google_id', 'meta_value' => $g_email));
@@ -166,9 +174,9 @@ function google_auth_init($button = false) {
 		session_destroy();
 	}
 
-	// use token in session
+	// use token in session and validate.
+	// FEATURE OFF FOR NOW as would require existing users to approve permissions again to allow offline access.
 	if (isset($_SESSION['token']) && false) {
-		logMsg("NOT HERE!!");
 		$oAuthClient->setAccessToken($_SESSION['token']);
 		if ($oAuthClient->validateToken() && false) {
 		} else {
